@@ -12,55 +12,47 @@ permissions:
 
 jobs:
   build_and_deploy:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
-    runs-on: ubuntu-latest
     name: Build & Deploy
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Node 24 (latest stable supported)
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: "pnpm"
-
-      # pnpm 10
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10
           run_install: false
 
-      # Install deps (fast + strict)
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Build (Vite → dist)
       - name: Build app
         run: pnpm build
 
-      # Deploy (skip Azure build)
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_WITTY_BUSH_007B1FC00 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
-
-          # IMPORTANT (correct for skip_app_build)
           app_location: "dist"
           api_location: ""
           output_location: ""
-
           skip_app_build: true
 
   close_pull_request:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
     name: Close PR Environment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
 
     steps:
       - name: Close Azure Preview
@@ -68,6 +60,4 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_WITTY_BUSH_007B1FC00 }}
           action: close
-
-          # Optional (only to silence editor warning)
           app_location: "/"
