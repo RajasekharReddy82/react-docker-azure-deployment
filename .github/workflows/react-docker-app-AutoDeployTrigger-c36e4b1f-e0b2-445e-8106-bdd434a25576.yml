@@ -18,6 +18,24 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup pnpm 10
+        run: |
+          corepack enable
+          corepack prepare pnpm@10 --activate
+          node --version
+          pnpm --version
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build app
+        run: pnpm build
+
       - name: Azure Login via OIDC
         uses: azure/login@v3
         with:
