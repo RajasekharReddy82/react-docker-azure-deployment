@@ -6,12 +6,17 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: react-docker-app-main
+  cancel-in-progress: true
+
 env:
   ACR_NAME: reactazuretestdeploy
   ACR_LOGIN_SERVER: reactazuretestdeploy.azurecr.io
   IMAGE_NAME: react-app
   CONTAINER_APP_NAME: react-docker-app
   RESOURCE_GROUP: DefaultResourceGroup-CID
+  APP_URL: https://react-docker-app.gentlestone-7c419d68.centralindia.azurecontainerapps.io
 
 jobs:
   build-and-deploy:
@@ -29,6 +34,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: pnpm
 
       - name: Setup pnpm 10
         run: |
@@ -36,6 +42,18 @@ jobs:
           corepack prepare pnpm@10 --activate
           node --version
           pnpm --version
+
+      - name: Get pnpm store path
+        id: pnpm-cache
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -66,10 +84,19 @@ jobs:
           tags: |
             ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Deploy latest image to Azure Container App
+      - name: Deploy image to Azure Container App
         run: |
           az containerapp update \
             --name $CONTAINER_APP_NAME \
             --resource-group $RESOURCE_GROUP \
             --image $ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}
+
+      - name: Wait for app rollout
+        run: sleep 20
+
+      - name: Health check
+        run: |
+          curl --fail --silent --show-error "$APP_URL" > /dev/null
