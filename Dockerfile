@@ -3,8 +3,8 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app
 
-# Enable pnpm
-RUN corepack enable
+# Enable pnpm 10 explicitly
+RUN corepack enable && corepack prepare pnpm@10 --activate
 
 # Copy dependency files first
 COPY package.json pnpm-lock.yaml ./
